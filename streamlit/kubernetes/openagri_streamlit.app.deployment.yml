@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ilvo-openagri-streamlit
+  labels:
+    name: ilvo-openagri-streamlit
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ilvo-openagri-streamlit-service
+  namespace: ilvo-openagri-streamlit
+spec:
+  selector:
+    app: ilvo-openagri-streamlit
+  ports:
+    - name: streamlit-web
+      protocol: TCP 
+      port: 8501
+      targetPort: 8501
+  type: ClusterIP  # Or LoadBalancer / NodePort
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-ingress
+  namespace: ilvo-openagri-streamlit
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: "streamlit.ilvoserver.com"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ilvo-openagri-streamlit-service
+            port:
+              number: 8501
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ilvo-openagri-streamlit
+  labels:
+    app: ilvo-openagri-streamlit
+  namespace: ilvo-openagri-streamlit
+spec:
+  selector:
+    matchLabels:
+      app: ilvo-openagri-streamlit
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: ilvo-openagri-streamlit
+    spec:
+      containers:
+      - name: ilvo-openagri-streamlit
+        image: jbauwens/openagri-streamlit:0.14
+        imagePullPolicy: Always
+        env:
+        ports:
+        volumeMounts:
+      volumes:

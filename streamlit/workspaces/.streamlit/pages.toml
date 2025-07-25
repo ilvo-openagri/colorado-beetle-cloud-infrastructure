@@ -1,0 +1,19 @@
+[[pages]]
+path = "pages/projects.py"
+name = "Projects"
+icon = ":material/format_list_bulleted:"
+
+[[pages]]
+path = "pages/statistics.py"
+name = "Overview"
+icon = ":material/bar_chart:"
+
+[[pages]]
+path = "pages/flight.py"
+name = "Flight"
+icon = ":material/flight_takeoff:"
+
+[[pages]]
+path = "pages/monitor.py"
+name = "Monitoring"
+icon = ":material/auto_graph:"

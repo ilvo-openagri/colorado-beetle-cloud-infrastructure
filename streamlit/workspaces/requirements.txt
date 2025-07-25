@@ -1,0 +1,16 @@
+dotenv
+folium
+geopandas
+geopy
+matplotlib
+numpy
+pandas
+plotly
+psycopg2
+pyproj
+PyQt6 
+rotating-calipers
+scipy
+streamlit
+streamlit-folium 
+st-pages
