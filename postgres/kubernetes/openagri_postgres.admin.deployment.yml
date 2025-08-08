@@ -47,7 +47,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: "pgadmin.ilvoserver.com"
+  - host: "pgadmin.ilvonuc.com"
     http:
       paths:
       - path: /

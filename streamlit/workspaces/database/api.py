@@ -112,6 +112,7 @@ class DatabaseApi:
             flight.id as flight_id,
             project.*,
             flight.timestamp_epoch,
+            flight.environment,
             flight.name as flight_name,
             (
                 SELECT COUNT(*)
@@ -171,7 +172,7 @@ class DatabaseApi:
         return values
 
     def post_flight(
-        self, project_id: int, flight_name: str, timestamp_epoch: int
+        self, project_id: int, flight_name: str, timestamp_epoch: int, environment: str = "cloud"
     ) -> int:
         """
         Insert a new flight into the database
@@ -180,14 +181,15 @@ class DatabaseApi:
             project_id (int): Project ID
             flight_name (str): Flight name
             timestamp_epoch (int): Timestamp in epoch format
+            environment (str): Environment where the flight is executed (cloud/edge)
 
         Returns:
             int: Flight ID
         """
         values = self._execute_query(
             f"""
-            INSERT INTO flights (project_id, name, timestamp_epoch) 
-            VALUES ('{project_id}', '{flight_name}', {timestamp_epoch})
+            INSERT INTO flights (project_id, name, environment, timestamp_epoch) 
+            VALUES ('{project_id}', '{flight_name}', '{environment}', {timestamp_epoch})
             RETURNING id;
             """
         )

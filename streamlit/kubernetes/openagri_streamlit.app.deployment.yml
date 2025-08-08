@@ -23,15 +23,24 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: minio-ingress
+  name: streamlit-ingress
   namespace: ilvo-openagri-streamlit
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   rules:
-  - host: "streamlit.ilvoserver.com"
+  - host: "streamlit.ilvonuc.com"
     http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ilvo-openagri-streamlit-service
+            port:
+              number: 8501
+  - http:
       paths:
       - path: /
         pathType: Prefix
@@ -62,9 +71,15 @@ spec:
     spec:
       containers:
       - name: ilvo-openagri-streamlit
-        image: jbauwens/openagri-streamlit:0.14
+        image: jbauwens/openagri-streamlit:0.23
         imagePullPolicy: Always
         env:
         ports:
         volumeMounts:
+          - name: streamlit-env-volume
+            mountPath: /env
       volumes:
+        - name: streamlit-env-volume
+          hostPath: 
+            path: /home/jbauwens/openagri/cloud-infrastructure/streamlit/kubernetes/streamlit-env
+            type: DirectoryOrCreate

@@ -14,7 +14,7 @@ COPY ./requirements.txt /workspaces
 RUN python3 -m pip install --upgrade pip
 ARG rerun="8"
 RUN python3 -m pip install -r requirements.txt
-ARG rerun_app_files="3"
+ARG rerun_app_files="5"
 WORKDIR /app
 ADD workspaces /app/
 COPY workspaces/.env /app/

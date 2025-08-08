@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import streamlit as st
 import time
+import traceback
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -14,25 +15,13 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 @st.dialog("Filter statistics")
 def data_filter(api):
-    # 1. Environment:
-    environments = list(api.keys())
-    environment_selection = list(
-        set(environments) & set(st.session_state.data_filter["environment"])
-    )
-
-    environment_selection = st.multiselect(
-        "Select environment", environments, environment_selection
-    )
-
-    # 2. Project:
+    # 1. Project:
     projects = set()
-    for environment in environment_selection:
-        projects.update([project["name"] for project in api[environment].get_project()])
+    projects.update([project["name"] for project in api.get_project()])
     project_selection = list(projects & set(st.session_state.data_filter["project"]))
     project_selection = st.multiselect("Select project", projects, project_selection)
 
     if st.button("Submit"):
-        st.session_state.data_filter["environment"] = environment_selection
         st.session_state.data_filter["project"] = project_selection
         st.rerun()
 
@@ -47,9 +36,9 @@ def event_flight_delete():
 
 # Initialise the session storage
 if "init_statistics" not in st.session_state:
-    st.session_state.database_api = load_database_connections(["cloud", "edge"])
+    st.session_state.database_api = load_database_connections()
     st.session_state.data_filter = {
-        "environment": list(st.session_state.database_api.keys()),
+        "environment": ["cloud", "edge"],
         "project": [],
     }
     st.session_state.minio_controller = MinioController(
@@ -69,18 +58,19 @@ if "flight_selection" in st.session_state:
     st.stop()
 
 if "delete_flight" in st.session_state:
-    # Delete the flight from the database:
-    st.session_state.database_api["cloud"].delete_flight(
-        flight_id=st.session_state["delete_flight"]["flight_id"][0]
-    )
+    for index in range(len(st.session_state["delete_flight"]["flight_id"])):
+        # Delete the flight from the database:
+        st.session_state.database_api.delete_flight(
+            flight_id=st.session_state["delete_flight"]["flight_id"][index]
+        )
 
-    # Delete the flight from the S3 bucket:
-    s3_filename = f"{st.session_state['delete_flight']['project_id'][0]}/{st.session_state['delete_flight']['flight_id'][0]}"
-    st.session_state.minio_controller.delete_file(
-        bucket_name=os.environ.get("MINIO_RAW_BUCKET"),
-        object_name=s3_filename,
-        recursive=True,
-    )
+        # Delete the flight from the S3 bucket:
+        s3_filename = f"{st.session_state['delete_flight']['project_id'][index]}/{st.session_state['delete_flight']['flight_id'][index]}"
+        st.session_state.minio_controller.delete_file(
+            bucket_name=os.environ.get("MINIO_RAW_BUCKET"),
+            object_name=s3_filename,
+            recursive=True,
+        )
 
     del st.session_state["delete_flight"]
 
@@ -100,10 +90,8 @@ if filter_columns[1].button("Filter", icon=":material/filter_alt:"):
 
 # Get all the required data:
 openagri_projects = []
-for openagri_environment in st.session_state.data_filter["environment"]:
-    for openagri_project in st.session_state.database_api[
-        openagri_environment
-    ].get_project_summary(
+try:
+    for openagri_project in st.session_state.database_api.get_project_summary(
         relational_data=True,
         start=time.mktime(st.session_state.date_filter[0].timetuple()),
         end=time.mktime(st.session_state.date_filter[-1].timetuple()) + 24 * 60 * 60,
@@ -113,8 +101,9 @@ for openagri_environment in st.session_state.data_filter["environment"]:
             and openagri_project["name"] not in st.session_state.data_filter["project"]
         ):
             continue
-        openagri_project["environment"] = openagri_environment
         openagri_projects.append(openagri_project)
+except RuntimeError as ex:
+    st.write(f"Error encountered while grabbing projects: {traceback.format_exc()}")
 
 dataframe = pd.DataFrame(openagri_projects)
 if openagri_projects:
@@ -172,7 +161,7 @@ grid_options = {
             "hide": False,
         },
     ],
-    "rowSelection": "single",
+    "rowSelection": "multiple",
     "rowMultiSelectWithClick": False,
     "suppressRowDeselection": False,
     "suppressRowClickSelection": False,
@@ -192,7 +181,7 @@ button_columns = st.columns([0.06, 1])
 with button_columns[0]:
     st.button(
         "View details",
-        disabled=st.session_state.grid_selection.selected_rows is None,
+        disabled=st.session_state.grid_selection.selected_rows is None or len(st.session_state.grid_selection.selected_rows) != 1,
         on_click=event_submit_details,
     )
 with button_columns[1]:

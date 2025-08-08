@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dashboard-ingress
+  namespace: ilvo-openagri-tick
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: "influx.ilvonuc.com"
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: influxdb-influxdb2
+            port:
+              number: 80
+

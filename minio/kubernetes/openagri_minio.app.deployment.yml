@@ -1,0 +1,137 @@
+# Deploys a new Namespace for the MinIO Pod
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ilvo-minio # Change this value if you want a different namespace name
+  labels:
+    name: ilvo-minio # Change this value to match metadata.name
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-api-and-console
+  namespace: ilvo-minio
+spec:
+  selector:
+    app: minio  # Match the labels Telegraf uses
+  ports:
+    - name: minio-api
+      protocol: TCP 
+      port: 9000
+      targetPort: 9000
+    - name: minio-console
+      protocol: TCP 
+      port: 9090
+      targetPort: 9090
+  type: ClusterIP  # Or LoadBalancer / NodePort
+---
+# Deploys a new MinIO Pod into the metadata.namespace Kubernetes namespace
+#
+# The `spec.containers[0].args` contains the command run on the pod
+# The `/data` directory corresponds to the `spec.containers[0].volumeMounts[0].mountPath`
+# That mount path corresponds to a Kubernetes HostPath which binds `/data` to a local drive or volume on the worker node where the pod runs
+# 
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: minio
+  name: minio
+  namespace: ilvo-minio # Change this value to match the namespace metadata.name
+spec:
+  containers:
+  - name: minio
+    image: quay.io/minio/minio:latest
+    command:
+    - /bin/bash
+    - -c
+    env:
+      - name: MINIO_ROOT_USER
+        value: "[REDACTED]"
+      - name: MINIO_ROOT_PASSWORD
+        value: "[REDACTED]123"
+    args: 
+    - minio server /data --console-address :9090
+    volumeMounts:
+    - name: minio-local-volume # Corresponds to the `spec.volumes` Persistent Volume
+      mountPath: /data
+  nodeSelector:
+    kubernetes.io/hostname: ilvo-soil-server # Specify a node label associated to the Worker Node on which you want to deploy the pod.
+  volumes:
+  - name: minio-local-volume
+    hostPath: # MinIO generally recommends using locally-attached volumes
+      path: /mnt/minio-kubernetes/data # Specify a path to a local drive or volume on the Kubernetes worker node
+      type: DirectoryOrCreate # The path to the last directory must exist
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-setup
+  namespace: ilvo-minio
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: setup
+          image: minio/mc
+          command: ["/bin/bash", "-c", "/config/init.sh"]
+          env:
+            - name: MINIO_ROOT_USER
+              value: "[REDACTED]"
+            - name: MINIO_ROOT_PASSWORD
+              value: "[REDACTED]123"
+          volumeMounts:
+            - name: minio-config-volume
+              mountPath: /config
+      volumes:
+        - name: minio-config-volume
+          hostPath:
+            path: /home/jbauwens/openagri/cloud-infrastructure/minio/kubernetes/config
+            type: Directory
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-ingress
+  namespace: ilvo-minio
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: "minio.ilvonuc.com"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-api-and-console
+            port:
+              number: 9090
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-api-ingress
+  namespace: ilvo-minio
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: "api.minio.ilvonuc.com"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-api-and-console
+            port:
+              number: 9000
+

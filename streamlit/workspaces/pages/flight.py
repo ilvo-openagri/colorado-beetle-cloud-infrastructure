@@ -1,6 +1,6 @@
-from dotenv import load_dotenv
 from drone import IlvoDrone
 from resources.database import load_database_connections
+from resources.dotenv import load_environment
 
 import os
 import streamlit as st
@@ -9,16 +9,16 @@ import time
 
 
 # Load dotenv:
-load_dotenv(".env")
+load_environment()
 
 
 # Initialise the session storage
 if "ilvo_drone" not in st.session_state:
-    st.session_state.database_api = load_database_connections(["cloud", "edge"])
+    st.session_state.database_api = load_database_connections()
     st.session_state.ilvo_drone = IlvoDrone(
         os.environ.get("DRONE_HOST"), int(os.environ.get("DRONE_HTTP_PORT"))
     )
-    st.session_state.environments = list(st.session_state.database_api.keys())
+    st.session_state.environments = ["cloud", "edge"]
 
 # Load the drone connection:
 ilvo_drone_status = st.session_state.ilvo_drone.get_status()
@@ -30,7 +30,7 @@ if not ilvo_drone_status["status"]:
         environment = st.selectbox("Select environment", st.session_state.environments)
         projects = {
             project["name"]: project["id"]
-            for project in st.session_state.database_api[environment].get_project()
+            for project in st.session_state.database_api.get_project()
         }
         project_name = st.selectbox(
             "Select project",
@@ -48,9 +48,10 @@ if not ilvo_drone_status["status"]:
                 st.stop()
             project_id = projects[project_name]
             try:
-                flight_id = st.session_state.database_api[environment].post_flight(
+                flight_id = st.session_state.database_api.post_flight(
                     project_id=project_id,
                     flight_name=flight_name,
+                    environment=environment,
                     timestamp_epoch=int(time.time()),
                 )
             except RuntimeError as ex:
@@ -59,15 +60,15 @@ if not ilvo_drone_status["status"]:
             st.session_state.ilvo_drone.start(
                 project_id=project_id,
                 flight_id=flight_id,
+                ads=environment,
             )
             time.sleep(1)
             st.rerun()
 else:
-    database_api = st.session_state.database_api["cloud"]
     if "flight_id" in ilvo_drone_status:
-        flight = database_api.get_flight(id=ilvo_drone_status["flight_id"])
+        flight = st.session_state.database_api.get_flight(id=ilvo_drone_status["flight_id"])
     if "project_id" in ilvo_drone_status:
-        project = database_api.get_project(id=ilvo_drone_status["project_id"])
+        project = st.session_state.database_api.get_project(id=ilvo_drone_status["project_id"])
 
     st.text(ilvo_drone_status)
     stop = st.button("Stop flight")

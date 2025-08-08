@@ -78,7 +78,7 @@ def _get_bounding_box_grid(bound_box: dict, num_rows: int, num_cols: int):
 def _get_grid_geojson(grid_values: np.ndarray, grid_cells: np.ndarray):
     # Determine the grid polygons
     features = []
-    vmax = np.amax(grid_values) if len(grid_values) != 0 else 0
+    vmax = max(1, np.amax(grid_values) if len(grid_values) != 0 else 0)
     for row in range(len(grid_cells) - 1):
         for column in range(len(grid_cells[0]) - 1):
 
@@ -183,7 +183,7 @@ def _calculate_grid(
         col_index = max(0, min(col_index, num_cols - 1))
         row_index = max(0, min(row_index, num_rows - 1))
 
-        df.loc[row_index, col_index] += entry.number_beetles
+        df.loc[row_index, col_index] += len(entry.detections)
         df_count.loc[row_index, col_index] += 1
     df = (df / df_count).replace(np.inf, np.nan).fillna(0)
     return df
@@ -213,10 +213,10 @@ def _data_2_geojson(
                 },
                 "properties": {
                     "image_id": openagri_image.image_id,
-                    "number_beetles": openagri_image.number_beetles,
+                    "number_beetles": len(openagri_image.detections),
                     "latitude": f"{openagri_image.gps_coordinate[1]:.10f}",
                     "longitude": f"{openagri_image.gps_coordinate[0]:.10f}",
-                    "radius": 3,
+                    "radius": 1,
                 },
             }
         )

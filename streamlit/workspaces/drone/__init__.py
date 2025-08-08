@@ -24,9 +24,14 @@ class IlvoDrone:
         else:
             response.raise_for_status()
 
-    def start(self, project_id: int, flight_id: int) -> bool:
+    def start(self, project_id: int, flight_id: int, ads: str = "cloud") -> bool:
         """
         Start the drone.
+        
+        Args:
+            project_id (int): The ID of the project to start the drone for.
+            flight_id (int): The ID of the flight to start.
+            ads (str): The ADS selection (cloud/edge)
 
         Returns:
             bool: True if the drone started successfully, False otherwise.
@@ -36,6 +41,7 @@ class IlvoDrone:
             json={
                 "project_id": project_id,
                 "flight_id": flight_id,
+                "ads": ads,
             },
         )
         return response.status_code == 200

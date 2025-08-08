@@ -1,11 +1,11 @@
 import streamlit as st
 from st_pages import add_page_title, get_nav_from_toml, hide_pages
 from PIL import Image
-from dotenv import load_dotenv
+from resources.dotenv import load_environment
 
 
 # Load dotenv:
-load_dotenv(".env")
+load_environment()
 
 st.set_page_config(
     page_title="OpenAgri SIP3 - Dashboard",

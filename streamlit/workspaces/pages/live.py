@@ -1,7 +1,7 @@
 from components.grid import create_grid
-from dotenv import load_dotenv
 from database import DatabaseApi, OpenagriImage
 from resources.database import load_database_connections
+from resources.dotenv import load_environment
 import datetime
 import folium
 import os
@@ -153,7 +153,7 @@ def visualise(map_placeholder):
 # st.set_page_config(layout="wide")
 
 # Load the dotenv file:
-load_dotenv(".env")
+load_environment()
 
 # Using object notation
 add_selectbox = st.sidebar.selectbox(
@@ -168,8 +168,8 @@ with st.sidebar:
 Welcome to the OpenAgri Streamlit interface for SIP3
 """
 # Load dependencies:
-database_api = load_database_connections(["cloud", "edge"])
-openagri_environments = list(database_api.keys())
+database_api = load_database_connections()
+openagri_environments = ["cloud", "edge"]
 basemaps = load_basemaps()
 
 # Give the user some choice:
@@ -191,7 +191,7 @@ st.session_state.openagri_environment = st.selectbox(
 # - Projects:
 openagri_projects = {
     project["name"]: project["id"]
-    for project in database_api[st.session_state.openagri_environment].get_project()
+    for project in database_api.get_project()
 }
 
 if len(openagri_projects) == 0:
@@ -211,9 +211,7 @@ openagri_flights = dict(
     sorted(
         {
             flight["timestamp_epoch"]: flight["id"]
-            for flight in database_api[
-                st.session_state.openagri_environment
-            ].get_flight(
+            for flight in database_api.get_flight(
                 project_id=openagri_projects[st.session_state.openagri_project]
             )
         }.items(),
@@ -238,7 +236,7 @@ if st.button("Apply"):
 
     while True:
         new_data = fetch_data(
-            database_connection=database_api[st.session_state.openagri_environment],
+            database_connection=database_api,
             project_id=openagri_projects[st.session_state.openagri_project],
             flight_id=openagri_flights[st.session_state.openagri_flight],
         )

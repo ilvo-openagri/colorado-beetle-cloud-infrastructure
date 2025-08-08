@@ -91,7 +91,7 @@ def _style_function(feature):
             "color": "#000000",  # Set the border color (black)
             "weight": 2,  # Set the border width
             "fillOpacity": 0.6,  # Set the transparency of the fill color
-            "radius": feature["properties"].get("radiius", 1),
+            "radius": feature["properties"].get("radius", 1),
         }
 
 
@@ -272,9 +272,12 @@ def fetch_images(
 
 def event_back():
     """Event triggered when user presses the back button"""
-    del st.session_state["flight_selection"]
-    del st.session_state["init_stats"]
-    del st.session_state["last_image_id"]
+    try:
+        del st.session_state["flight_selection"]
+        del st.session_state["init_stats"]
+        del st.session_state["last_image_id"]
+    except KeyError:
+        pass
 
 
 def event_live_toggle():
@@ -306,9 +309,7 @@ def run():
 
     while live_updates or st.session_state.init_stats:
         new_data = fetch_images(
-            database_connection=st.session_state.database_api[
-                selected_flight["environment"]
-            ],
+            database_connection=st.session_state.database_api,
             project_id=selected_flight["project_id"],
             flight_id=selected_flight["flight_id"],
         )
@@ -325,11 +326,11 @@ def run():
                     len(st.session_state.statistics_detailed),
                 )
                 n_beetles = (
-                    int(sum([entry.number_beetles for entry in new_data])),
+                    int(sum([len(entry.detections) for entry in new_data])),
                     int(
                         sum(
                             [
-                                entry.number_beetles
+                                len(entry.detections)
                                 for entry in st.session_state.statistics_detailed
                             ]
                         )
@@ -344,8 +345,8 @@ def run():
                 metrics[1].metric(
                     "Time", selected_flight["timestamp_epoch"], border=True
                 )
-                metrics[2].metric("Images with beetles", *n_images, border=True)
-                metrics[3].metric("Detected colorado beetles", *n_beetles, border=True)
+                metrics[2].metric("Images", *n_images, border=True)
+                metrics[4].metric("Detected colorado beetles", *n_beetles, border=True)
 
             # Map + statistics
             visualise(map_placeholder, new_data)
