@@ -16,6 +16,5 @@ RUN python3 -m pip install -r requirements.txt
 ARG rerun_app_files="5"
 WORKDIR /app
 ADD workspaces /app/
-COPY workspaces/.env /app/
 
 ENTRYPOINT ["streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]

@@ -48,11 +48,10 @@ spec:
     command:
     - /bin/bash
     - -c
+    envFrom:
+      - secretRef:
+          name: minio-credentials
     env:
-      - name: MINIO_ROOT_USER
-        value: "[REDACTED]"
-      - name: MINIO_ROOT_PASSWORD
-        value: "[REDACTED]123"
       - name: MINIO_LOG_LEVEL
         value: "debug"
     args: 
@@ -82,13 +81,9 @@ spec:
           image: minio/mc
           imagePullPolicy: IfNotPresent
           command: ["/bin/bash", "-c", "/config/init.sh"]
-          env:
-            - name: MINIO_ROOT_USER
-              value: "[REDACTED]"
-            - name: MINIO_ROOT_PASSWORD
-              value: "[REDACTED]123"
-            - name: WEBHOOK_ENDPOINT
-              value: "http://192.168.50.1:8080"
+          envFrom:
+            - secretRef:
+                name: minio-credentials
           volumeMounts:
             - name: minio-config-volume
               mountPath: /config

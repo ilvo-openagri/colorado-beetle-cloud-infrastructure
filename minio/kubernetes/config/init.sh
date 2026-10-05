@@ -1,5 +1,5 @@
 #!/bin/sh
-set -ex
+set -e
 
 # Set alias
 until mc alias set myminio http://minio-api-and-console.ilvo-openagri-minio.svc.cluster.local:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD; do
@@ -27,7 +27,7 @@ fi
 # Create drone user
 if ! mc admin user info myminio openagri-drone-user > /dev/null 2>&1; then
   echo "Creating user openagri-drone-user..."
-  mc admin user add myminio openagri-drone-user [REDACTED]
+  mc admin user add myminio openagri-drone-user "$MINIO_DRONE_USER_PASSWORD"
 else
   echo "User openagri-drone-user already exists. Skipping creation."
 fi
@@ -35,7 +35,7 @@ fi
 # Create AI webserver user
 if ! mc admin user info myminio openagri-webserver-user > /dev/null 2>&1; then
   echo "Creating user openagri-webserver-user..."
-  mc admin user add myminio openagri-webserver-user [REDACTED]
+  mc admin user add myminio openagri-webserver-user "$MINIO_WEBSERVER_USER_PASSWORD"
 else
   echo "User openagri-webserver-user already exists. Skipping creation."
 fi

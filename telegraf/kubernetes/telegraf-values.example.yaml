@@ -1,0 +1,25 @@
+config:
+  agent:
+    hostname: "replace-with-kubernetes-hostname"
+  global_tags:
+    host: "replace-with-kubernetes-hostname"
+  outputs:
+    - influxdb_v2:
+        urls:
+          - "http://influxdb-influxdb2.ilvo-openagri-tick.svc.cluster.local"
+        bucket: "openagri-bucket"
+        organization: "replace-with-influx-organization"
+        timeout: "5s"
+        token: "replace-with-influx-token"
+  inputs:
+    - socket_listener:
+        service_address: "tcp://:8094"
+        data_format: "influx"
+    - cpu:
+        percpu: true
+        totalcpu: true
+        collect_cpu_time: false
+        report_active: false
+    - mem: {}
+    - net: {}
+  docker_endpoint: ""

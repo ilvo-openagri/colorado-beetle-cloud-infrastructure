@@ -42,4 +42,4 @@ The image export and import scripts support preparing a cluster with limited or 
 
 ## Configuration and Security
 
-Review the manifests and configuration files before applying them. Some values are deployment-specific, including host paths and DNS names; credentials are also present in secret/configuration files and in parts of the MinIO setup. Replace defaults, rotate exposed credentials, and keep production secrets out of source control and shared container images. The supplied ingress manifests do not configure TLS.
+Review the manifests and configuration files before applying them. Some values are deployment-specific, including host paths and DNS names. Create credential files locally from the `.example` templates in [INSTALL.md](INSTALL.md); real credential files are ignored by Git and MinIO credentials are provisioned as a Kubernetes Secret. Rotate any credentials used by earlier deployments or published commits. The supplied ingress manifests do not configure TLS.

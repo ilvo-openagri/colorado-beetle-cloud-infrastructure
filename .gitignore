@@ -4,3 +4,14 @@
 exported/*
 scripts/pod-images.txt
 scripts/images.txt
+
+# Local credentials and deployment-specific secret files
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.testing.example
+**/*.secrets.yml
+grafana/grafana-secrets
+minio/kubernetes/minio-credentials.env
+telegraf/kubernetes/telegraf-values.yaml
+telegraf/systemd/telegraf-host.conf

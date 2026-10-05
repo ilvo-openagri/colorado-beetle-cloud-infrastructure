@@ -27,9 +27,10 @@ Do this before deploying anything:
 
 1. Replace the example ingress hostnames in the manifests with names available in your DNS. The current hostnames include `streamlit.ilvonuc.com`, `pgadmin.ilvonuc.com`, `minio.ilvonuc.com`, `api.minio.ilvonuc.com`, `influx.ilvonuc.com`, and `grafana.ilvoserver.com`.
 2. Update machine-specific `hostPath` values and the MinIO `nodeSelector` in the manifests. Create the required directories on the Kubernetes node and ensure the pods can write to their mounted storage. In particular, review the paths in the PostgreSQL, MinIO, and Streamlit manifests.
-3. Review Kubernetes Secret manifests and application environment files. The repository contains deployment-specific credentials, and the MinIO manifest and bootstrap script contain credentials directly. Replace these with unique secrets before deployment, rotate any values that may have been exposed, and do not commit production credentials.
-4. Configure the InfluxDB and Telegraf files with the correct organization, bucket, endpoint, and API tokens. Keep tokens out of source control.
-5. Check the Streamlit Docker build context. Its Dockerfile copies `streamlit/workspaces/.env` into the image; do not put production secrets in an image that will be shared. Update the Dockerfile or use a secure runtime configuration approach for your deployment.
+3. Create local credential files from the `.example` files described below and replace every placeholder. These real files are ignored by Git; do not force-add them.
+4. Rotate any credentials that have been used in an earlier deployment or published commit. Removing a file from the latest commit does not invalidate its credentials.
+5. Configure InfluxDB and Telegraf with the correct organization, bucket, endpoint, and API tokens. Keep tokens in the ignored local Telegraf configuration files.
+6. Streamlit credentials are loaded from the mounted local `.env` file at runtime. The Dockerfile does not copy `.env` into the image.
 
 Ingress hostnames and storage paths are defined in the manifests rather than generated from one central configuration file, so update each relevant manifest consistently.
 
@@ -58,6 +59,10 @@ Point the DNS records from the configuration section at the ingress address. For
 Create the database namespace and secrets, then deploy PostgreSQL and pgAdmin:
 
 ```bash
+cp -n postgres/kubernetes/openagri_postgres.admin.secrets.example.yml postgres/kubernetes/openagri_postgres.admin.secrets.yml
+cp -n postgres/kubernetes/openagri_postgres.db.secrets.example.yml postgres/kubernetes/openagri_postgres.db.secrets.yml
+chmod 600 postgres/kubernetes/openagri_postgres.*.secrets.yml
+# Edit both local files and replace all placeholder values before applying.
 kubectl apply -f postgres/kubernetes/openagri_postgres.db.namespace.yml
 kubectl apply -f postgres/kubernetes/openagri_postgres.admin.secrets.yml
 kubectl apply -f postgres/kubernetes/openagri_postgres.db.secrets.yml
@@ -75,7 +80,21 @@ Open the configured pgAdmin hostname, register the server using `postgres-servic
 
 ## Install MinIO
 
-After replacing its example credentials, webhook endpoint, node selector, and host paths, apply the MinIO resources:
+Prepare the ignored local credential file, replacing every placeholder. Existing deployments retain their local file; `cp -n` will not overwrite it.
+
+```bash
+cp -n minio/kubernetes/minio-credentials.env.example minio/kubernetes/minio-credentials.env
+chmod 600 minio/kubernetes/minio-credentials.env
+# Edit the local file with unique credentials and the correct webhook endpoint.
+kubectl create namespace ilvo-openagri-minio --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic minio-credentials \
+  --from-env-file=minio/kubernetes/minio-credentials.env \
+  -n ilvo-openagri-minio --dry-run=client -o yaml | kubectl apply -f -
+```
+
+The setup job reads the MinIO root credentials, service-user passwords, and webhook endpoint from this Kubernetes Secret. The `init.sh` script does not print expanded commands or passwords.
+
+After updating the node selector and host paths, apply the MinIO resources:
 
 ```bash
 kubectl apply -f minio/kubernetes/openagri_minio.app.deployment.yml
@@ -125,6 +144,14 @@ Replace the angle-bracket placeholders with your values; note the bucket ID for 
 
 ## Install Streamlit
 
+For a new checkout, create the local environment files and replace their placeholders. The Kubernetes manifest mounts `streamlit/kubernetes/streamlit-env` at `/env`; that directory must be present on the selected node.
+
+```bash
+cp -n streamlit/workspaces/.env.example streamlit/workspaces/.env
+cp -n streamlit/workspaces/.env.example streamlit/kubernetes/streamlit-env/.env
+chmod 600 streamlit/workspaces/.env streamlit/kubernetes/streamlit-env/.env
+```
+
 The deployment references the image `jbauwens/openagri-streamlit:1.0.6`. Either make the configured image available to the cluster or build and push your own image, then update the deployment manifest to use its image name and tag:
 
 ```bash
@@ -158,6 +185,14 @@ The claim requires a working default storage class, or a storage class/Persisten
 ## Install Telegraf
 
 Telegraf has a Kubernetes deployment and a separate host-level systemd service. Install it after InfluxDB is available and its API token has been configured.
+
+For a new checkout, make local copies of the example configurations and enter the correct endpoint, organization, bucket, and token. The copy commands preserve existing local files.
+
+```bash
+cp -n telegraf/kubernetes/telegraf-values.example.yaml telegraf/kubernetes/telegraf-values.yaml
+cp -n telegraf/systemd/telegraf-host.example.conf telegraf/systemd/telegraf-host.conf
+chmod 600 telegraf/kubernetes/telegraf-values.yaml telegraf/systemd/telegraf-host.conf
+```
 
 For the Kubernetes DaemonSet:
 
