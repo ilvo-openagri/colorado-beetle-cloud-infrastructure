@@ -1,0 +1,56 @@
+.openagri-magnifier {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 1rem;
+    align-items: start;
+}
+
+.openagri-magnifier-stage {
+    position: relative;
+    min-width: 0;
+}
+
+.openagri-magnifier-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    cursor: crosshair;
+    user-select: none;
+}
+
+.openagri-magnifier-lens {
+    position: absolute;
+    display: none;
+    pointer-events: none;
+    border: 2px solid rgba(255, 255, 255, 0.92);
+    border-radius: 999px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+    background-color: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(1px);
+}
+
+.openagri-magnifier-result {
+    width: 280px;
+    height: 280px;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background-color: #f8f9fa;
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+@media (max-width: 992px) {
+    .openagri-magnifier {
+        grid-template-columns: 1fr;
+    }
+
+    .openagri-magnifier-result {
+        width: 100%;
+        max-width: 100%;
+    }
+}

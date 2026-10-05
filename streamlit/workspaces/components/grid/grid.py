@@ -1,6 +1,6 @@
 from database import OpenagriImage
 from scipy.signal import convolve2d
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, QhullError
 import json
 import logging
 import math
@@ -78,7 +78,7 @@ def _get_bounding_box_grid(bound_box: dict, num_rows: int, num_cols: int):
 def _get_grid_geojson(grid_values: np.ndarray, grid_cells: np.ndarray):
     # Determine the grid polygons
     features = []
-    vmax = max(1, np.amax(grid_values) if len(grid_values) != 0 else 0)
+    vmax = min(10, max(1, np.amax(grid_values) if len(grid_values) != 0 else 0))
     for row in range(len(grid_cells) - 1):
         for column in range(len(grid_cells[0]) - 1):
 
@@ -184,6 +184,8 @@ def _calculate_grid(
         row_index = max(0, min(row_index, num_rows - 1))
 
         df.loc[row_index, col_index] += len(entry.detections)
+        if entry.model_runtime > 0:
+            df.loc[row_index, col_index] += 0.5
         df_count.loc[row_index, col_index] += 1
     df = (df / df_count).replace(np.inf, np.nan).fillna(0)
     return df
@@ -216,7 +218,7 @@ def _data_2_geojson(
                     "number_beetles": len(openagri_image.detections),
                     "latitude": f"{openagri_image.gps_coordinate[1]:.10f}",
                     "longitude": f"{openagri_image.gps_coordinate[0]:.10f}",
-                    "radius": 1,
+                    "radius": 0.2,
                 },
             }
         )
@@ -260,7 +262,12 @@ def _data_2_geojson(
 def create_grid(input_data: list[OpenagriImage], cell_size: int = 5):
     logger = logging.getLogger("create_grid")
 
-    utm_bounding_box = _get_bounding_box([x.utm_coordinate for x in input_data])
+    try:
+        utm_bounding_box = _get_bounding_box([x.utm_coordinate for x in input_data])
+    except QhullError as e:
+        raise ValueError(
+            "At least 3 unique coordinates are required to form a grid."
+        ) from e
 
     bounding_box_width = math.dist(
         utm_bounding_box["bottom_left"], utm_bounding_box["bottom_right"]

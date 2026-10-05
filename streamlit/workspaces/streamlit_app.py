@@ -15,7 +15,6 @@ st.set_page_config(
 
 
 nav = get_nav_from_toml(".streamlit/pages.toml")
-# hide_pages(["Detailed statistics"])
 st.logo("icons/openagri.png", size="large")
 pg = st.navigation(nav)
 add_page_title(pg)

@@ -1,0 +1,77 @@
+:root {
+  --openagri-navbar-height: 86px;
+}
+
+#app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#app-container > .container-fluid {
+  flex: 1;
+}
+
+#main-layout {
+  min-height: calc(100vh - var(--openagri-navbar-height));
+}
+
+#sidebar-col {
+  display: flex;
+}
+
+.openagri-sidebar {
+  width: 100%;
+}
+
+.openagri-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.openagri-sidebar-collapsed .openagri-sidebar-toggle {
+  justify-content: center;
+}
+
+.openagri-sidebar-collapsed .openagri-sidebar-toggle i {
+  margin-right: 0 !important;
+}
+
+.openagri-sidebar-collapsed .sidebar-link-label {
+  display: none;
+}
+
+.openagri-sidebar-collapsed .sidebar-nav .nav-link {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.openagri-sidebar-collapsed .sidebar-nav .nav-link i {
+  margin-right: 0 !important;
+  font-size: 1.1rem;
+}
+
+@media (min-width: 768px) {
+  #sidebar-col {
+    position: sticky;
+    top: 0;
+    align-self: stretch;
+    height: calc(100vh - var(--openagri-navbar-height) - 1.5rem);
+  }
+
+  .openagri-sidebar {
+    height: 100%;
+  }
+
+  .openagri-sidebar-collapsed {
+    min-width: 72px;
+  }
+
+  .openagri-sidebar-collapsed .sidebar-nav .nav-link {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}

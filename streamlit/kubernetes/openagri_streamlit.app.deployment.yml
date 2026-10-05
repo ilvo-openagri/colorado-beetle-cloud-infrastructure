@@ -71,7 +71,7 @@ spec:
     spec:
       containers:
       - name: ilvo-openagri-streamlit
-        image: jbauwens/openagri-streamlit:0.23
+        image: jbauwens/openagri-streamlit:1.0.6
         imagePullPolicy: Always
         env:
         ports:

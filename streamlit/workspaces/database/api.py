@@ -172,7 +172,11 @@ class DatabaseApi:
         return values
 
     def post_flight(
-        self, project_id: int, flight_name: str, timestamp_epoch: int, environment: str = "cloud"
+        self,
+        project_id: int,
+        flight_name: str,
+        timestamp_epoch: int,
+        environment: str = "cloud",
     ) -> int:
         """
         Insert a new flight into the database
@@ -212,11 +216,12 @@ class DatabaseApi:
 
     # ------------------------
     # /images
-    def get_images(self, flight_id: int) -> list:
+    def get_images(self, flight_id: int, confidence: float) -> list:
         """Get the images belonging to a flight
 
         Args:
             flight_id (int): flight ID
+            confidence (float): Minimum confidence for detections to be counted
 
         Returns:
             List: Image descriptions
@@ -225,7 +230,7 @@ class DatabaseApi:
             f"""
             SELECT image.*, COUNT(detection.*) as detection_count
             FROM images image
-            LEFT JOIN detections detection ON detection.image_id = image.id AND detection.confidence > 0.5
+            LEFT JOIN detections detection ON detection.image_id = image.id AND detection.confidence > {confidence}
             WHERE image.flight_id = {flight_id}
             GROUP BY image.id
             ORDER BY image.id
@@ -235,7 +240,7 @@ class DatabaseApi:
 
     # ------------------------
     # /detections
-    def get_detections(self, image_id: int) -> list:
+    def get_detections(self, image_id: int, confidence: float) -> list:
         """Get the detections belonging to an image
 
         Args:
@@ -249,6 +254,7 @@ class DatabaseApi:
             SELECT detection.*
             FROM detections detection
             WHERE detection.image_id = {image_id}
+            AND detection.confidence > {confidence}
             ORDER BY detection.id
             """
         )

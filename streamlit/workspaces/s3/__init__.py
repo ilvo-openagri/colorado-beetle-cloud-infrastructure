@@ -54,3 +54,11 @@ class MinioController:
                 Bucket=bucket_name,
                 Key=object_name,
             )
+
+    def get_object_bytes(self, bucket_name: str, object_name: str) -> bytes:
+        """Read an object from MinIO and return its raw bytes."""
+        response = self._s3_client.get_object(Bucket=bucket_name, Key=object_name)
+        try:
+            return response["Body"].read()
+        finally:
+            response["Body"].close()

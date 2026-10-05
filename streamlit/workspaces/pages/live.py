@@ -67,7 +67,7 @@ def fetch_data(
     Returns:
         list[GridInputData]: A list containing input data for visualisation
     """
-    images = database_connection.get_images(flight_id)
+    images = database_connection.get_images(flight_id, confidence=0.5)
     if not images:
         return []
 
@@ -113,7 +113,7 @@ def create_map(input_data):
     farm_map = folium.Map()
     basemaps["Google Satellite"].add_to(farm_map)
     folium.GeoJson(
-        create_grid(input_data, 15),
+        create_grid(input_data, 2),
         style_function=_style_function,
         marker=folium.Circle(radius=0.33, fill_color="grey", fill_opacity=0.4),
     ).add_to(farm_map)
@@ -190,8 +190,7 @@ st.session_state.openagri_environment = st.selectbox(
 
 # - Projects:
 openagri_projects = {
-    project["name"]: project["id"]
-    for project in database_api.get_project()
+    project["name"]: project["id"] for project in database_api.get_project()
 }
 
 if len(openagri_projects) == 0:

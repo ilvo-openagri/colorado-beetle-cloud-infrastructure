@@ -1,7 +1,7 @@
 # Create docker image:
 sudo docker build -f Dockerfile -t openagri-streamlit:latest .
-sudo docker tag openagri-streamlit:latest jbauwens/openagri-streamlit:0.23
-sudo docker push jbauwens/openagri-streamlit:0.23
+sudo docker tag openagri-streamlit:latest jbauwens/openagri-streamlit:1.0.6
+sudo docker push jbauwens/openagri-streamlit:1.0.6
 
 # Install the openagri Streamlit server in kubernetes:
 kubectl apply -f kubernetes/openagri_streamlit.app.deployment.yml

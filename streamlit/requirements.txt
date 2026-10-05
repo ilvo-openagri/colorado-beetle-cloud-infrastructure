@@ -1,5 +1,7 @@
 boto3
 dotenv
+dash
+dash-bootstrap-components
 folium
 geopandas
 geopy

@@ -27,7 +27,7 @@ class IlvoDrone:
     def start(self, project_id: int, flight_id: int, ads: str = "cloud") -> bool:
         """
         Start the drone.
-        
+
         Args:
             project_id (int): The ID of the project to start the drone for.
             flight_id (int): The ID of the flight to start.

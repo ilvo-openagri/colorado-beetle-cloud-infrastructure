@@ -4,7 +4,7 @@ name = "Projects"
 icon = ":material/format_list_bulleted:"
 
 [[pages]]
-path = "pages/statistics.py"
+path = "pages/overview.py"
 name = "Overview"
 icon = ":material/bar_chart:"
 
