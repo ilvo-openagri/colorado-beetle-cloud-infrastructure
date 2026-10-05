@@ -2,15 +2,15 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ilvo-minio # Change this value if you want a different namespace name
+  name: ilvo-openagri-minio # Change this value if you want a different namespace name
   labels:
-    name: ilvo-minio # Change this value to match metadata.name
+    name: ilvo-openagri-minio # Change this value to match metadata.name
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: minio-api-and-console
-  namespace: ilvo-minio
+  namespace: ilvo-openagri-minio
 spec:
   selector:
     app: minio  # Match the labels Telegraf uses
@@ -19,11 +19,13 @@ spec:
       protocol: TCP 
       port: 9000
       targetPort: 9000
+      nodePort: 30003
     - name: minio-console
       protocol: TCP 
       port: 9090
       targetPort: 9090
-  type: ClusterIP  # Or LoadBalancer / NodePort
+      nodePort: 30004
+  type: NodePort  # Or LoadBalancer / NodePort
 ---
 # Deploys a new MinIO Pod into the metadata.namespace Kubernetes namespace
 #
@@ -37,11 +39,12 @@ metadata:
   labels:
     app: minio
   name: minio
-  namespace: ilvo-minio # Change this value to match the namespace metadata.name
+  namespace: ilvo-openagri-minio # Change this value to match the namespace metadata.name
 spec:
   containers:
   - name: minio
-    image: quay.io/minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+    imagePullPolicy: IfNotPresent
     command:
     - /bin/bash
     - -c
@@ -50,6 +53,8 @@ spec:
         value: "[REDACTED]"
       - name: MINIO_ROOT_PASSWORD
         value: "[REDACTED]123"
+      - name: MINIO_LOG_LEVEL
+        value: "debug"
     args: 
     - minio server /data --console-address :9090
     volumeMounts:
@@ -67,7 +72,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: minio-setup
-  namespace: ilvo-minio
+  namespace: ilvo-openagri-minio
 spec:
   template:
     spec:
@@ -75,12 +80,15 @@ spec:
       containers:
         - name: setup
           image: minio/mc
+          imagePullPolicy: IfNotPresent
           command: ["/bin/bash", "-c", "/config/init.sh"]
           env:
             - name: MINIO_ROOT_USER
               value: "[REDACTED]"
             - name: MINIO_ROOT_PASSWORD
               value: "[REDACTED]123"
+            - name: WEBHOOK_ENDPOINT
+              value: "http://192.168.50.1:8080"
           volumeMounts:
             - name: minio-config-volume
               mountPath: /config
@@ -94,7 +102,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: minio-ingress
-  namespace: ilvo-minio
+  namespace: ilvo-openagri-minio
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
@@ -117,7 +125,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: minio-api-ingress
-  namespace: ilvo-minio
+  namespace: ilvo-openagri-minio
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"

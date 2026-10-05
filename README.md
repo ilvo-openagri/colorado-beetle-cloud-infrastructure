@@ -4,6 +4,14 @@ This repository consist of all the dependencies that are required to set up the 
 
 ## Mini PC
 
+### Kubernetes
+
+On the cloud installation we made use of microk8s.
+Install nginx:
+```bash 
+helm upgrade --install ingress-nginx ingress-nginx   --repo https://kubernetes.github.io/ingress-nginx   --namespace ingress-nginx --create-namespace  -f ingress/config.yaml
+```
+
 ### DNS
 
 Update coredns:
@@ -87,6 +95,7 @@ Ensure that telegraf/kubernetes/telegraf-values.yaml and telegraf-host.conf cons
 To install telegraf in kubernetes:
 ```bash
 helm upgrade --install influx-telegraf influxdata/telegraf-ds -n ilvo-openagri-tick -f telegraf/kubernetes/telegraf-values.yaml
+kubectl apply -f telegraf/kubernetes/telegraf-service.yaml
 ```
 
 To install it on the host system, first install telegraf:

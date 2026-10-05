@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS images
     storage_location text NOT NULL,
     gps_location point NOT NULL,
     width INTEGER NOT NULL,
-    height INTEGER NOT NULL
+    height INTEGER NOT NULL,
+    model_runtime real,
 );
 
 CREATE TABLE IF NOT EXISTS detections
