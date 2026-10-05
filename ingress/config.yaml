@@ -1,0 +1,9 @@
+controller:
+  enableSnippets: true
+  config:
+    allow-snippet-annotations: "true"
+    annotations-risk-level: Critical
+  service:
+    type: NodePort
+  hostPort:
+    enabled: true

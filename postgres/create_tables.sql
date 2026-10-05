@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS images
     gps_location point NOT NULL,
     width INTEGER NOT NULL,
     height INTEGER NOT NULL,
-    model_runtime real,
+    model_runtime real
 );
 
 CREATE TABLE IF NOT EXISTS detections
