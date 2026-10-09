@@ -101,7 +101,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: "grafana.ilvoserver.com"
+  - host: "grafana.example.invalid"
     http:
       paths:
       - path: /

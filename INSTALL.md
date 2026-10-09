@@ -2,7 +2,7 @@
 
 This guide describes installing the services in this repository on a Linux host running Kubernetes. It expands the deployment notes in [README.md](README.md) into an end-to-end sequence.
 
-The manifests were written for a single-node MicroK8s installation and include host-specific settings. Review the configuration section before applying them to another machine. These manifests configure HTTP ingress; TLS, backups, and production hardening are deployment-specific and are not configured here.
+The manifests were written for a single-node MicroK8s installation. Kubernetes resources use a Kustomize base and an environment overlay; review the configuration section before applying them to another machine. These manifests configure HTTP ingress; TLS, backups, and production hardening are deployment-specific and are not configured here.
 
 ## Prerequisites
 
@@ -25,14 +25,14 @@ For MicroK8s, enable the required Kubernetes features and use its kubectl/Helm c
 
 Do this before deploying anything:
 
-1. Replace the example ingress hostnames in the manifests with names available in your DNS. The current hostnames include `streamlit.ilvonuc.com`, `pgadmin.ilvonuc.com`, `minio.ilvonuc.com`, `api.minio.ilvonuc.com`, `influx.ilvonuc.com`, and `grafana.ilvoserver.com`.
-2. Update machine-specific `hostPath` values and the MinIO `nodeSelector` in the manifests. Create the required directories on the Kubernetes node and ensure the pods can write to their mounted storage. In particular, review the paths in the PostgreSQL, MinIO, and Streamlit manifests.
+1. Copy `deploy/overlays/ilvo/` to `deploy/overlays/<environment>/` and edit the `deployment-settings` literals in its `kustomization.yaml`. Set ingress DNS names, the MinIO node name, and the PostgreSQL, MinIO, and Streamlit host paths there; do not edit the base manifests. The `ilvo` overlay contains the current site's values as a starting point.
+2. Create the configured host directories on the Kubernetes node and ensure the pods can write to their mounted storage. The MinIO setup files are bundled into a ConfigMap, so they no longer require a host mount from the repository checkout.
 3. Create local credential files from the `.example` files described below and replace every placeholder. These real files are ignored by Git; do not force-add them.
 4. Rotate any credentials that have been used in an earlier deployment or published commit. Removing a file from the latest commit does not invalidate its credentials.
 5. Configure InfluxDB and Telegraf with the correct organization, bucket, endpoint, and API tokens. Keep tokens in the ignored local Telegraf configuration files.
 6. Streamlit credentials are loaded from the mounted local `.env` file at runtime. The Dockerfile does not copy `.env` into the image.
 
-Ingress hostnames and storage paths are defined in the manifests rather than generated from one central configuration file, so update each relevant manifest consistently.
+The overlay is the single source for environment-specific Kubernetes hostnames, node selection, and storage paths. Deploy it with `kubectl apply -k deploy/overlays/<environment>` after preparing the required namespaces, credentials, and host-mounted application configuration below.
 
 ## Install Ingress
 
@@ -56,7 +56,7 @@ Point the DNS records from the configuration section at the ingress address. For
 
 ## Install PostgreSQL
 
-Create the database namespace and secrets, then deploy PostgreSQL and pgAdmin:
+Create the database namespace and secrets. The workloads are deployed later with the environment overlay:
 
 ```bash
 cp -n postgres/kubernetes/openagri_postgres.admin.secrets.example.yml postgres/kubernetes/openagri_postgres.admin.secrets.yml
@@ -66,17 +66,7 @@ chmod 600 postgres/kubernetes/openagri_postgres.*.secrets.yml
 kubectl apply -f postgres/kubernetes/openagri_postgres.db.namespace.yml
 kubectl apply -f postgres/kubernetes/openagri_postgres.admin.secrets.yml
 kubectl apply -f postgres/kubernetes/openagri_postgres.db.secrets.yml
-kubectl apply -f postgres/kubernetes/openagri_postgres.db.deployment.yml
-kubectl apply -f postgres/kubernetes/openagri_postgres.admin.deployment.yml
 ```
-
-Check pod status:
-
-```bash
-kubectl get pods,pvc -n ilvo-openagri-postgres
-```
-
-Open the configured pgAdmin hostname, register the server using `postgres-service.ilvo-openagri-postgres.svc.cluster.local` as its address, and enter the database credentials from your configured secret. Connect to the intended database and run [postgres/create_tables.sql](postgres/create_tables.sql) to create the application tables.
 
 ## Install MinIO
 
@@ -94,28 +84,30 @@ kubectl create secret generic minio-credentials \
 
 The setup job reads the MinIO root credentials, service-user passwords, and webhook endpoint from this Kubernetes Secret. The `init.sh` script does not print expanded commands or passwords.
 
-After updating the node selector and host paths, apply the MinIO resources:
+The environment overlay creates the MinIO StatefulSet, persistent volume and claim, services, ingress rules, and setup job. The hostPath-backed volume retains data when the pod is recreated, but it is still tied to one node and is not a substitute for backups or replicated storage.
+
+When migrating an existing installation from the former bare pod, back up MinIO data and stop that pod before applying the overlay. This avoids two MinIO processes using the same data directory:
 
 ```bash
-kubectl apply -f minio/kubernetes/openagri_minio.app.deployment.yml
-kubectl get pods,jobs -n ilvo-openagri-minio
+kubectl delete pod minio -n ilvo-openagri-minio
 ```
 
-The manifest creates the MinIO pod, services, ingress rules, and a setup job. The job creates the application buckets, users, policy, and webhook event. Verify that the MinIO pod is ready and the `minio-setup` job completes before configuring applications that use object storage.
+Keep the existing data directory; the new persistent volume points to the configured host path. Do not remove the retained persistent volume or claim during this migration.
 
 ## Install InfluxDB
 
 Create the namespace and install InfluxDB with the repository's values:
 
 ```bash
-kubectl create namespace ilvo-openagri-tick
+kubectl create namespace ilvo-openagri-tick --dry-run=client -o yaml | kubectl apply -f -
 helm repo add influxdata https://helm.influxdata.com/
 helm repo update
 helm upgrade --install influxdb influxdata/influxdb2 \
   -f influxdb/kubernetes/influxdb-values.yaml \
   -n ilvo-openagri-tick
-kubectl apply -f influxdb/kubernetes/influxdb-ingress.yaml
 ```
+
+The InfluxDB ingress is created by the environment overlay.
 
 Retrieve the generated admin password:
 
@@ -144,15 +136,18 @@ Replace the angle-bracket placeholders with your values; note the bucket ID for 
 
 ## Install Streamlit
 
-For a new checkout, create the local environment files and replace their placeholders. The Kubernetes manifest mounts `streamlit/kubernetes/streamlit-env` at `/env`; that directory must be present on the selected node.
+For a new checkout, create the local environment file and replace its placeholders. Keep it local; it will be loaded into a namespaced Kubernetes Secret at runtime, not copied into the image or mounted from the node.
 
 ```bash
 cp -n streamlit/workspaces/.env.example streamlit/workspaces/.env
-cp -n streamlit/workspaces/.env.example streamlit/kubernetes/streamlit-env/.env
-chmod 600 streamlit/workspaces/.env streamlit/kubernetes/streamlit-env/.env
+chmod 600 streamlit/workspaces/.env
+kubectl create namespace ilvo-openagri-streamlit --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic streamlit-runtime \
+  --from-env-file=streamlit/workspaces/.env \
+  -n ilvo-openagri-streamlit --dry-run=client -o yaml | kubectl apply -f -
 ```
 
-The deployment references the image `jbauwens/openagri-streamlit:1.0.6`. Either make the configured image available to the cluster or build and push your own image, then update the deployment manifest to use its image name and tag:
+The environment overlay sets the Streamlit image. Either make that image available to the cluster or build and push your own, then set the `streamlit-image` literal in the overlay to its name and tag:
 
 ```bash
 cd streamlit
@@ -161,24 +156,29 @@ docker push <REGISTRY>/openagri-streamlit:<TAG>
 cd ..
 ```
 
-Apply the deployment and wait for it to roll out:
+The host-level Dash systemd unit is a separate deployment from the Kubernetes Streamlit container. It expects the application under `/opt/openagri/streamlit`, an `openagri` service account, and a runtime `workspaces/.env` file; install it there or adjust the unit for your host. Both entry points use the `workspaces/dash_pages/` page tree for Dash or the `workspaces/pages/` tree for Streamlit.
+
+## Apply Kubernetes Manifests
+
+After preparing the PostgreSQL, MinIO, and Streamlit secrets and ensuring the Streamlit image is available, apply the selected environment overlay:
 
 ```bash
-kubectl apply -f streamlit/kubernetes/openagri_streamlit.app.deployment.yml
-kubectl rollout status deployment/ilvo-openagri-streamlit \
-  -n ilvo-openagri-streamlit
+kubectl apply -k deploy/overlays/ilvo
 ```
 
-The manifest mounts a host directory for Streamlit configuration. Update that host path to a directory that exists on the Kubernetes node before applying it.
-
-## Install Grafana (Optional)
-
-The Grafana manifest includes its namespace, persistent volume claim, deployment, service, and ingress:
+For a copied environment overlay, replace `ilvo` with its directory name. The overlay applies the PostgreSQL, MinIO, Streamlit, Grafana, and ingress resources. Check the workloads:
 
 ```bash
-kubectl apply -f grafana/grafana-config.yaml
-kubectl get pods,pvc -n ilvo-grafana
+kubectl get pods,pvc -n ilvo-openagri-postgres
+kubectl get pods,jobs -n ilvo-openagri-minio
+kubectl rollout status deployment/ilvo-openagri-streamlit -n ilvo-openagri-streamlit
 ```
+
+After deployment, open the configured pgAdmin hostname, register the server using `postgres-service.ilvo-openagri-postgres.svc.cluster.local` as its address, and enter the database credentials from your configured secret. Connect to the intended database and run [postgres/create_tables.sql](postgres/create_tables.sql) to create the application tables.
+
+## Configure Grafana
+
+The environment overlay includes Grafana's namespace, persistent volume claim, deployment, service, and ingress. Check it with `kubectl get pods,pvc -n ilvo-grafana`.
 
 The claim requires a working default storage class, or a storage class/PersistentVolume configured for your cluster. Set a unique Grafana administrator password and configure the InfluxDB data source using a suitably restricted token.
 
@@ -218,9 +218,10 @@ sudo apt-get update
 sudo apt-get install telegraf
 ```
 
-Verify the signing key fingerprint against InfluxData's current installation documentation before using this command. Then update `telegraf/systemd/telegraf-host.conf` with the correct endpoint and token. Edit `telegraf/systemd/telegraf.service` so `ExecStart` points to that config in this checkout and `User` is a valid local account, then install and enable the service:
+Verify the signing key fingerprint against InfluxData's current installation documentation before using this command. Then update `telegraf/systemd/telegraf-host.conf` with the correct endpoint and token. Install the configured file at Telegraf's standard config path; the unit uses the package's `telegraf` account and does not depend on the checkout path:
 
 ```bash
+sudo install -o telegraf -g telegraf -m 600 telegraf/systemd/telegraf-host.conf /etc/telegraf/telegraf.conf
 sudo cp telegraf/systemd/telegraf.service /etc/systemd/system/telegraf.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now telegraf

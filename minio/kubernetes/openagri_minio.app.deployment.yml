@@ -1,4 +1,4 @@
-# Deploys a new Namespace for the MinIO Pod
+# Deploys a namespace and MinIO workload.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -27,45 +27,95 @@ spec:
       nodePort: 30004
   type: NodePort  # Or LoadBalancer / NodePort
 ---
-# Deploys a new MinIO Pod into the metadata.namespace Kubernetes namespace
-#
-# The `spec.containers[0].args` contains the command run on the pod
-# The `/data` directory corresponds to the `spec.containers[0].volumeMounts[0].mountPath`
-# That mount path corresponds to a Kubernetes HostPath which binds `/data` to a local drive or volume on the worker node where the pod runs
-# 
 apiVersion: v1
-kind: Pod
+kind: Service
 metadata:
+  name: minio-headless
+  namespace: ilvo-openagri-minio
+spec:
+  clusterIP: None
+  selector:
+    app: minio
+  ports:
+    - name: minio-api
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: minio-volume
   labels:
     app: minio
-  name: minio
-  namespace: ilvo-openagri-minio # Change this value to match the namespace metadata.name
 spec:
-  containers:
-  - name: minio
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
-    imagePullPolicy: IfNotPresent
-    command:
-    - /bin/bash
-    - -c
-    envFrom:
-      - secretRef:
-          name: minio-credentials
-    env:
-      - name: MINIO_LOG_LEVEL
-        value: "debug"
-    args: 
-    - minio server /data --console-address :9090
-    volumeMounts:
-    - name: minio-local-volume # Corresponds to the `spec.volumes` Persistent Volume
-      mountPath: /data
-  nodeSelector:
-    kubernetes.io/hostname: ilvo-soil-server # Specify a node label associated to the Worker Node on which you want to deploy the pod.
-  volumes:
-  - name: minio-local-volume
-    hostPath: # MinIO generally recommends using locally-attached volumes
-      path: /mnt/minio-kubernetes/data # Specify a path to a local drive or volume on the Kubernetes worker node
-      type: DirectoryOrCreate # The path to the last directory must exist
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: /srv/openagri/minio/data
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-volume-claim
+  namespace: ilvo-openagri-minio
+  labels:
+    app: minio
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: ilvo-openagri-minio
+spec:
+  serviceName: minio-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: replace-with-node-name
+      containers:
+        - name: minio
+          image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "-c"]
+          args:
+            - minio server /data --console-address :9090
+          envFrom:
+            - secretRef:
+                name: minio-credentials
+          env:
+            - name: MINIO_LOG_LEVEL
+              value: "debug"
+          ports:
+            - name: minio-api
+              containerPort: 9000
+            - name: minio-console
+              containerPort: 9090
+          volumeMounts:
+            - name: minio-data
+              mountPath: /data
+      volumes:
+        - name: minio-data
+          persistentVolumeClaim:
+            claimName: minio-volume-claim
 ---
 apiVersion: batch/v1
 kind: Job
@@ -89,9 +139,8 @@ spec:
               mountPath: /config
       volumes:
         - name: minio-config-volume
-          hostPath:
-            path: /home/jbauwens/openagri/cloud-infrastructure/minio/kubernetes/config
-            type: Directory
+          configMap:
+            name: minio-setup-config
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -104,7 +153,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: "minio.ilvonuc.com"
+  - host: "minio.example.invalid"
     http:
       paths:
       - path: /
@@ -127,7 +176,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: "api.minio.ilvonuc.com"
+  - host: "api.minio.example.invalid"
     http:
       paths:
       - path: /

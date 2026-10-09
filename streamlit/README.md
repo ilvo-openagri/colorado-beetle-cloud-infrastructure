@@ -1,18 +1,19 @@
 # Create docker image:
-sudo docker build -f Dockerfile -t openagri-streamlit:latest .
-sudo docker tag openagri-streamlit:latest jbauwens/openagri-streamlit:1.0.6
-sudo docker push jbauwens/openagri-streamlit:1.0.6
+docker build -f Dockerfile -t <REGISTRY>/openagri-streamlit:<TAG> .
+docker push <REGISTRY>/openagri-streamlit:<TAG>
 
 # Install the openagri Streamlit server in kubernetes:
-kubectl apply -f kubernetes/openagri_streamlit.app.deployment.yml
-kubectl rollout restart deployment ilvo-openagri-streamlit -n ilvo-openagri-streamlit
+kubectl apply -k deploy/overlays/<environment>
+kubectl rollout status deployment/ilvo-openagri-streamlit -n ilvo-openagri-streamlit
 kubectl exec --stdin --tty -n ilvo-openagri-streamlit deployment/ilvo-openagri-streamlit -- /bin/bash
+
+The container starts `streamlit_app.py` and uses the Streamlit `pages/` directory. The separate host-level Dash service starts `dash_app.py` and uses `dash_pages/`; it is not included in this image. Provide Streamlit settings through the `streamlit-runtime` Kubernetes Secret, not an image-baked `.env` file.
 
 
 # Issues
 
-## Tls issue:
-tls: failed to verify certificate: x509: certificate is valid for 172.17.0.1, 192.168.251.174, 10.8.0.17, not 192.168.251.185
+## TLS issue
+If certificate verification reports that the requested host is not listed in the certificate's Subject Alternative Names (SANs), issue a certificate containing the DNS names or IP addresses used by clients.
 
 microk8s config | tee ~/.kube/config
 sudo microk8s refresh-certs -e ca.crt

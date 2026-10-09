@@ -3,15 +3,15 @@ Description=OpenAgri Dash UI
 After=network.target
 
 [Service]
-WorkingDirectory=/home/jbauwens/openagri/cloud-infrastructure/streamlit/
-Environment=PYTHONPATH=workspaces
-ExecStart=/usr/bin/env .venv/bin/python -m dash_app --env-file=workspaces/.env.testing
+WorkingDirectory=/opt/openagri/streamlit
+Environment=PYTHONPATH=/opt/openagri/streamlit/workspaces
+ExecStart=/opt/openagri/streamlit/.venv/bin/python -m dash_app --env-file=/opt/openagri/streamlit/workspaces/.env
 Restart=on-failure
 RestartSec=5s
 TimeoutSec=30
 StandardOutput=append:/var/log/openagri/dash.log
 StandardError=append:/var/log/openagri/dash.log
-User=jbauwens
+User=openagri
 
 
 [Install]

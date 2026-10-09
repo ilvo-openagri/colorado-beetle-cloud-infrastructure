@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 echo "=== Checking pod status ==="
 microk8s kubectl get pods -A
@@ -26,7 +27,7 @@ cat /tmp/pod-images.txt
 echo
 echo "=== Checking if all referenced images exist in containerd ==="
 missing=0
-for img in $(cat /tmp/pod-images.txt); do
+while IFS= read -r img || [[ -n "$img" ]]; do
     if [[ "$img" == *@sha256:* ]]; then
         digest="${img##*@}"
         match=$(microk8s ctr images ls -q | grep "$digest" || true)
@@ -40,9 +41,9 @@ for img in $(cat /tmp/pod-images.txt); do
         echo "MISSING: $img"
         missing=1
     fi
-done
+done < /tmp/pod-images.txt
 
-if [ $missing -eq 0 ]; then
+if [[ $missing -eq 0 ]]; then
     echo "All images are present in containerd"
 else
     echo "Some images are missing in containerd"

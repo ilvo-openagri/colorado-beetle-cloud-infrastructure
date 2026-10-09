@@ -3,10 +3,10 @@ Description=Telegraf agent
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/telegraf --config /home/jbauwens/openagri/cloud-infrastructure/telegraf/systemd/telegraf-host.conf
+ExecStart=/usr/bin/telegraf --config /etc/telegraf/telegraf.conf
 Restart=on-failure
 RestartSec=5s
-User=jbauwens
+User=telegraf
 TimeoutSec=30
 
 [Install]

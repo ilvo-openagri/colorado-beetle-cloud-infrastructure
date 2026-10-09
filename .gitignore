@@ -11,6 +11,13 @@ scripts/images.txt
 !**/.env.example
 !**/.env.testing.example
 **/*.secrets.yml
+**/*secret*.yml
+**/*secret*.yaml
+!**/*.secrets.example.yml
+!**/*.secrets.example.yaml
+**/*credentials*.env
+**/*credentials*.env.*
+!**/*credentials*.env.example
 grafana/grafana-secrets
 minio/kubernetes/minio-credentials.env
 telegraf/kubernetes/telegraf-values.yaml

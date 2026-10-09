@@ -30,7 +30,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: "streamlit.ilvonuc.com"
+  - host: "streamlit.example.invalid"
     http:
       paths:
       - path: /
@@ -71,15 +71,10 @@ spec:
     spec:
       containers:
       - name: ilvo-openagri-streamlit
-        image: jbauwens/openagri-streamlit:1.0.6
+        image: openagri-streamlit:latest
         imagePullPolicy: Always
-        env:
+        envFrom:
+          - secretRef:
+              name: streamlit-runtime
         ports:
-        volumeMounts:
-          - name: streamlit-env-volume
-            mountPath: /env
-      volumes:
-        - name: streamlit-env-volume
-          hostPath: 
-            path: /home/jbauwens/openagri/cloud-infrastructure/streamlit/kubernetes/streamlit-env
-            type: DirectoryOrCreate
+          - containerPort: 8501

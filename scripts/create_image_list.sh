@@ -1,16 +1,19 @@
 #!/bin/bash
 set -e
 
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+pod_images="$script_dir/pod-images.txt"
+
 mkdir -p exported
 
 # Get images used by pods
 microk8s kubectl get pods -A \
   -o jsonpath='{range .items[*]}{.spec.containers[*].image}{"\n"}{end}' \
-  | sort -u > pod-images.txt
+    | sort -u > "$pod_images"
 
 ctr_images=$(microk8s ctr images ls -q)
 
-while read img; do
+while IFS= read -r img || [[ -n "$img" ]]; do
     echo "Processing $img"
 
     # If digest is present, match only that digest
@@ -39,4 +42,4 @@ while read img; do
 
     echo "Exporting $match → $out"
     microk8s ctr images export "$out" "$match"
-done < pod-images.txt
+done < "$pod_images"
